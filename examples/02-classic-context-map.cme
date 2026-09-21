@@ -1,0 +1,22 @@
+# A classic context map: the full range of DDD
+# relationship patterns (OHS, PL, ACL, CF, conformist,
+# customer-supplier), no enrichment. Best viewed on L0.
+
+map "Classic context map · e-commerce"
+
+// pinned into a clean radial layout (Orders = hub) that fills the canvas
+context ERP           { at 150 110 }
+context Catalog       { at 150 390 }
+context Identity      { at 150 740 }
+context Payments      { at 650 790 }
+context Orders        { at 800 410 }
+context Shipping      { at 1230 230 }
+context Notifications { at 1230 610 }
+
+Identity -> Orders       { type open-host-service   upstream OHS  downstream CF }
+Identity -> Payments     { type open-host-service   upstream OHS  downstream CF }
+ERP -> Catalog           { type customer-supplier   downstream ACL  integration "nightly sync" }
+Catalog -> Orders        { type customer-supplier   upstream OHS  downstream ACL }
+Payments -> Orders       { type open-host-service   upstream OHS  integration "create payment" }
+Orders -> Shipping       { type customer-supplier   upstream PL }
+Orders -> Notifications  { type conformist }

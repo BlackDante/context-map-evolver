@@ -1,0 +1,43 @@
+{
+  "name": "context-map-evolver",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Lightweight tool for drawing DDD context maps that evolve from diagrams into multi-dimensional decision tools.",
+  "keywords": [
+    "ddd",
+    "domain-driven-design",
+    "context-map",
+    "bounded-context",
+    "dsl",
+    "svg",
+    "diagram",
+    "cynefin",
+    "promise-theory",
+    "connascence",
+    "coupling"
+  ],
+  "author": "Kamil Kiełbasa",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "typecheck": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "check": "tsc && vitest run && vite build"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "@vitest/coverage-v8": "^5.0.1",
+    "jsdom": "^30.1.0",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.0",
+    "vitest": "^5.0.1"
+  }
+}

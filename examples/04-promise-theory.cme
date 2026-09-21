@@ -1,0 +1,43 @@
+# Promise Theory (Mark Burgess): autonomous contexts make
+# voluntary promises. '+' gives, '-' uses; cooperation
+# needs both. Impositions are forced. Best viewed on L2.
+
+map "Promise theory · fulfilment"
+
+context Orders {
+  at 360 380                 // pinned for a clean demo layout (Orders = hub)
+  subdomain core
+  cynefin complicated
+  promise + "an accepted order is valid and paid" to Warehouse
+  // a use-promise (-): Orders relies on Payments, and says so explicitly
+  promise - "payment confirmation" from Payments if "order total is positive"
+}
+
+context Warehouse {
+  at 880 680                 // adjacent to Carrier so their edge stays on the right
+  subdomain supporting
+  cynefin complicated
+  promise + "a confirmed pick ships same day" to Orders if "picked before 2pm"
+  promise - "label format" from Carrier
+}
+
+context Payments {
+  at 80 120
+  subdomain generic
+  cynefin clear
+  // the matching (+) for Orders' (-) — together they make cooperation work
+  promise + "payment confirmation" to Orders
+}
+
+context Carrier {
+  at 880 120
+  subdomain generic
+  cynefin clear
+  promise + "tracking updates" to Orders
+  // not a promise: Carrier cannot promise on Warehouse's behalf
+  imposition "you must use our label format" on Warehouse
+}
+
+Warehouse -> Orders  { type partnership }
+Payments -> Orders   { type customer-supplier }
+Carrier -> Orders    { type conformist }

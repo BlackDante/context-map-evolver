@@ -1,0 +1,165 @@
+:root {
+  --bg: #f1f5f9;
+  --panel: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  --accent: #7c3aed;
+  font-family: Inter, system-ui, -apple-system, sans-serif;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); }
+#app { display: flex; flex-direction: column; height: 100vh; }
+
+/* ---- top bar ---- */
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 10px 16px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.logo { width: 40px; height: 40px; flex: none; }
+.brand h1 { font-size: 16px; margin: 0; }
+.tagline { font-size: 11.5px; color: var(--muted); margin: 2px 0 0; }
+
+.level-control { display: flex; align-items: center; gap: 10px; }
+.level-label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+#level { width: 120px; accent-color: var(--accent); }
+.level-name {
+  font-size: 12.5px; font-weight: 600; color: var(--accent);
+  min-width: 215px;
+}
+
+.layer-toggles { display: flex; gap: 5px; margin-left: auto; }
+.toggle {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11.5px; padding: 4px 8px;
+  border: 1px solid var(--line); border-radius: 999px;
+  cursor: pointer; user-select: none; background: #fff;
+}
+.toggle input { accent-color: var(--accent); margin: 0; }
+
+/* ---- workspace ---- */
+.workspace { display: flex; flex: 1; min-height: 0; }
+.editor-pane {
+  width: 480px; min-width: 320px;
+  display: flex; flex-direction: column;
+  border-right: 1px solid var(--line); background: var(--panel);
+}
+.pane-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 14px; font-size: 12px; font-weight: 600;
+  color: var(--muted); border-bottom: 1px solid var(--line);
+  text-transform: uppercase; letter-spacing: .04em;
+}
+.pane-actions { display: flex; gap: 6px; }
+.demo-pick {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted);
+}
+.demo-pick select {
+  font-size: 11.5px; text-transform: none; letter-spacing: 0;
+  padding: 3px 6px; border: 1px solid var(--line); border-radius: 6px;
+  background: #fff; color: var(--ink); cursor: pointer; max-width: 200px;
+}
+.ghost-btn {
+  font-size: 11px; padding: 3px 9px; border-radius: 6px;
+  border: 1px solid var(--line); background: #fff; color: var(--muted);
+  cursor: pointer; text-transform: none; letter-spacing: 0;
+}
+.ghost-btn:hover { background: #f8fafc; color: var(--ink); }
+
+/* highlighted <pre> layered exactly behind a transparent <textarea> */
+.editor-stack { position: relative; flex: 1; min-height: 0; }
+.editor-stack > pre.hl,
+.editor-stack > #dsl {
+  position: absolute; inset: 0; margin: 0; border: 0;
+  padding: 14px;
+  font-family: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  font-size: 12.5px; line-height: 1.55; tab-size: 2;
+  white-space: pre-wrap; word-break: break-word; overflow-wrap: break-word;
+  overflow: auto;
+}
+.editor-stack > pre.hl {
+  pointer-events: none; z-index: 0;
+  color: #1e293b; background: #fff;
+}
+.editor-stack > #dsl {
+  z-index: 1; resize: none; outline: none;
+  background: transparent; color: transparent; caret-color: #1e293b;
+}
+.editor-stack > #dsl::selection { background: #c7d2fe; }
+
+/* token colours */
+.hl-cm { color: #94a3b8; font-style: italic; }
+.hl-st { color: #15803d; }
+.hl-kw { color: #7c3aed; font-weight: 600; }
+.hl-va { color: #0891b2; }
+.hl-op { color: #db2777; font-weight: 600; }
+.hl-pn { color: #64748b; }
+.hl-nu { color: #c2410c; }
+.hl-id { color: #1e293b; }
+.hl-po { color: #0d9488; font-weight: 700; }
+.parse-status {
+  padding: 7px 14px; font-size: 11.5px; border-top: 1px solid var(--line);
+  font-family: ui-monospace, monospace;
+}
+.parse-status.ok { color: #16a34a; }
+.parse-status.error { color: #dc2626; }
+
+/* column: toolbar (pane-head) sits ABOVE the map body */
+.map-pane { flex: 1; position: relative; display: flex; flex-direction: column; min-width: 0; }
+.map-body { display: flex; flex: 1; min-height: 0; }
+.canvas-wrap {
+  flex: 1; overflow: auto; padding: 24px;
+  display: grid; place-items: center;
+  /* a definite 1fr track — with the default auto track the svg's max-height:100%
+     has nothing to resolve against and tall maps overflow instead of scaling */
+  grid-template: minmax(0, 1fr) / minmax(0, 1fr);
+  background:
+    radial-gradient(circle at 1px 1px, #dbe2ea 1px, transparent 0) 0 0 / 22px 22px;
+}
+/* fit-to-view by default: scale down to the canvas, stay vector-crisp */
+.canvas-wrap svg { display: block; max-width: 100%; max-height: 100%; }
+/* truncated labels carry data-tip; hint that they're hoverable */
+.canvas-wrap svg g.has-tip { cursor: help; }
+.svg-tip {
+  position: fixed; z-index: 1000; display: none; pointer-events: none;
+  max-width: 340px; padding: 5px 9px; border-radius: 6px;
+  background: #0f172a; color: #fff; font-size: 11.5px; line-height: 1.4;
+  white-space: pre-line; /* multi-line tips (one connascence kind per line) */
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.28);
+}
+
+/* ---- insight panel ---- */
+.insight-panel {
+  width: 300px; min-width: 300px;
+  border-left: 1px solid var(--line); background: var(--panel);
+  overflow: auto; padding: 8px 0;
+}
+/* hidden by default to give the SVG full width; toggled from the Map toolbar */
+.insight-panel.collapsed { display: none; }
+.insight-block { padding: 10px 16px; border-bottom: 1px solid var(--line); }
+.insight-block h3 {
+  font-size: 11px; text-transform: uppercase; letter-spacing: .05em;
+  color: var(--muted); margin: 4px 0 8px;
+}
+.insight-block ul { list-style: none; margin: 0; padding: 0; }
+.insight-block li { font-size: 12px; line-height: 1.5; margin-bottom: 9px; color: #334155; }
+.insight-block ul.sub { margin: 3px 0 0 12px; padding-left: 8px; border-left: 2px solid var(--line); }
+.insight-block ul.sub li { font-size: 11px; margin-bottom: 2px; }
+.muted { color: var(--muted); }
+.pad { padding: 16px; }
+.score { float: right; font-weight: 700; color: #0f172a; }
+.risk-dot {
+  display: inline-block; width: 9px; height: 9px; border-radius: 50%;
+  margin-right: 6px; vertical-align: middle;
+}
+.risk-dot.low { background: #16a34a; }
+.risk-dot.medium { background: #d97706; }
+.risk-dot.high { background: #dc2626; }

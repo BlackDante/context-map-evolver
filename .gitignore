@@ -1,0 +1,10 @@
+node_modules
+dist
+coverage
+.vite
+.DS_Store
+.playwright-mcp
+# local Claude Code settings
+.claude/settings.local.json
+# never commit compiled JS emitted next to sources
+src/*.js

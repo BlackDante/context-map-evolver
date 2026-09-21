@@ -1,0 +1,11 @@
+# Bare structure: contexts and relationships only.
+# Teaches the notation. Best viewed on L0.
+
+map "Minimal map"
+
+context Sales
+context Shipping
+context Billing
+
+Sales -> Shipping { type customer-supplier }
+Sales -> Billing  { type customer-supplier }

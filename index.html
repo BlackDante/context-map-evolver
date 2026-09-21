@@ -1,0 +1,87 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Context Map Evolver</title>
+    <meta
+      name="description"
+      content="Draw DDD context maps as text and evolve them from diagrams into decision tools: strategic classification, Promise Theory, coupling and connascence — one model, four lenses."
+    />
+    <meta property="og:title" content="Context Map Evolver" />
+    <meta property="og:description" content="DDD context maps as code — one evolving artifact, four analytical lenses." />
+    <meta property="og:type" content="website" />
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <meta name="theme-color" content="#7c3aed" />
+  </head>
+  <body>
+    <div id="app">
+      <header class="topbar">
+        <div class="brand">
+          <svg class="logo" viewBox="0 0 64 64" fill="none" aria-hidden="true">
+            <rect x="21.5" y="4.5" width="38" height="38" rx="11" stroke="#a78bfa" stroke-width="2.6" stroke-dasharray="5.2 4.4" stroke-linecap="round"/>
+            <rect x="12" y="12" width="40" height="40" rx="11.5" fill="#c4b5fd"/>
+            <rect x="4" y="20" width="40" height="40" rx="11.5" fill="#7c3aed"/>
+            <rect x="10" y="26.5" width="13" height="9.5" rx="3" fill="#fff"/>
+            <rect x="25" y="44" width="13" height="9.5" rx="3" fill="#fff"/>
+            <path d="M23 31.2h4.5a4 4 0 0 1 4 4v5.6" stroke="#fff" stroke-width="2.8" stroke-linecap="round"/>
+            <path d="M27.6 37.6 31.5 41.5l3.9-3.9" stroke="#fff" stroke-width="2.8" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <div>
+            <h1>Context Map Evolver</h1>
+            <p class="tagline">From diagrams to decision tools — one evolving artifact</p>
+          </div>
+        </div>
+
+        <div class="level-control">
+          <label class="level-label">Detail level</label>
+          <input type="range" id="level" min="0" max="3" step="1" value="0" />
+          <span class="level-name" id="levelName">L0 · Structure</span>
+        </div>
+
+        <div class="layer-toggles" id="layerToggles">
+          <!-- toggles injected by main.ts -->
+        </div>
+      </header>
+
+      <main class="workspace">
+        <section class="editor-pane">
+          <div class="pane-head">
+            <label class="demo-pick">demo
+              <select id="demoSelect"></select>
+            </label>
+            <div class="pane-actions">
+              <button id="copyDsl" class="ghost-btn" title="Copy DSL to clipboard">copy</button>
+              <button id="importCme" class="ghost-btn" title="Import a .cme model">import</button>
+              <button id="exportCme" class="ghost-btn" title="Download model as .cme">export .cme</button>
+              <input id="cmeFile" type="file" accept=".cme,text/plain" hidden />
+            </div>
+          </div>
+          <div class="editor-stack">
+            <pre id="dslHl" class="hl" aria-hidden="true"></pre>
+            <textarea id="dsl" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+          </div>
+          <div class="parse-status" id="parseStatus"></div>
+        </section>
+
+        <section class="map-pane">
+          <div class="pane-head">
+            <span>Map</span>
+            <div class="pane-actions">
+              <!-- feature-flagged (src/flags.ts): revealed by main.ts when `analysis` is on -->
+              <button id="toggleInsight" class="ghost-btn" hidden>show analysis ◂</button>
+              <button id="relayout" class="ghost-btn">re-layout</button>
+              <button id="exportSvg" class="ghost-btn">export SVG</button>
+            </div>
+          </div>
+          <div class="map-body">
+            <div class="canvas-wrap" id="canvasWrap"></div>
+            <aside class="insight-panel collapsed" id="insightPanel" hidden></aside>
+          </div>
+        </section>
+      </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
