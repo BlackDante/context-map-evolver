@@ -4,9 +4,12 @@ import { parse } from '../src/parser';
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), 'utf8');
 
-/** Fenced code blocks that are complete models (they declare a `map`). */
+/** Fenced code blocks without a language tag that are complete models (they declare a `map`). */
 function models(markdown: string): string[] {
-  return [...markdown.matchAll(/```\n([\s\S]*?)```/g)].map((m) => m[1]).filter((src) => /^map "/m.test(src) && !src.includes('…'));
+  return [...markdown.matchAll(/^```(\w*)\n([\s\S]*?)^```/gm)]
+    .filter((m) => m[1] === '') // ```bash blocks are shell, not DSL
+    .map((m) => m[2])
+    .filter((src) => /^map "/m.test(src) && !src.includes('…'));
 }
 
 describe('documentation stays true to the parser', () => {
