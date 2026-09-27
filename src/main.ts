@@ -8,6 +8,15 @@ import { LEVELS } from './levels';
 import { esc } from './escape';
 import { resolveFlags } from './flags';
 import type { ContextMap } from './model';
+import {
+  fileUrl,
+  hostApiFrom,
+  initialFile,
+  parseSource,
+  sourceValue,
+  type HostedIndex,
+  type Source,
+} from './host';
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
@@ -197,21 +206,43 @@ function section(title: string, body: string): string {
 // --- wiring -----------------------------------------------------------------
 
 const demoSelect = $<HTMLSelectElement>('demoSelect');
+const sourceLabel = $<HTMLSpanElement>('sourceLabel');
 
-function buildDemoPicker() {
+// Hosted mode (`context-map-evolver host <dir>`): the CLI serves this page with
+// a <meta name="cme-host"> tag, and the .cme files on disk join the picker next
+// to the built-in demos. On a static deploy `hostApi` is null and only demos show.
+const hostApi = hostApiFrom(document);
+let hosted: HostedIndex | null = null;
+let current: Source = { kind: 'demo', id: DEFAULT_DEMO_ID };
+let loadedFromDisk = ''; // what the open file looked like on disk — differs when edited here
+
+function buildPicker() {
   demoSelect.innerHTML = '';
-  for (const d of DEMOS) {
-    const opt = document.createElement('option');
-    opt.value = d.id;
-    opt.textContent = d.name;
-    demoSelect.appendChild(opt);
+  if (hosted) {
+    const files = document.createElement('optgroup');
+    files.label = `${hosted.dir}/`;
+    for (const f of hosted.files) files.appendChild(option(sourceValue({ kind: 'file', path: f.path }), f.name));
+    demoSelect.appendChild(files);
   }
-  demoSelect.value = DEFAULT_DEMO_ID;
+  const demos = document.createElement('optgroup');
+  demos.label = hosted ? 'demos' : 'built-in demos';
+  for (const d of DEMOS) demos.appendChild(option(sourceValue({ kind: 'demo', id: d.id }), d.name));
+  demoSelect.appendChild(demos);
+  demoSelect.value = sourceValue(current);
+}
+
+function option(value: string, text: string): HTMLOptionElement {
+  const opt = document.createElement('option');
+  opt.value = value;
+  opt.textContent = text;
+  return opt;
 }
 
 function loadDemo(id: string) {
   const demo = DEMOS.find((d) => d.id === id);
   if (!demo) return;
+  current = { kind: 'demo', id };
+  demoSelect.value = sourceValue(current);
   dslEl.value = demo.dsl;
   levelEl.value = String(demo.level); // jump to the level that shows it best
   overrides = {};
@@ -219,11 +250,72 @@ function loadDemo(id: string) {
   update();
 }
 
-demoSelect.addEventListener('change', () => loadDemo(demoSelect.value));
+async function loadFile(path: string) {
+  if (!hostApi) return;
+  let text: string;
+  try {
+    const res = await fetch(fileUrl(hostApi, path));
+    if (!res.ok) throw new Error(res.statusText);
+    text = await res.text();
+  } catch {
+    parseStatus.className = 'parse-status error';
+    parseStatus.textContent = `could not read ${path} from disk`;
+    return;
+  }
+  current = { kind: 'file', path };
+  loadedFromDisk = text;
+  demoSelect.value = sourceValue(current);
+  dslEl.value = text;
+  seed = 1; // fresh deterministic layout for the new model
+  update();
+}
 
-buildDemoPicker();
+demoSelect.addEventListener('change', () => {
+  const source = parseSource(demoSelect.value);
+  if (source?.kind === 'demo') loadDemo(source.id);
+  else if (source?.kind === 'file') void loadFile(source.path);
+});
+
+async function fetchHostedIndex(): Promise<HostedIndex | null> {
+  if (!hostApi) return null;
+  try {
+    const res = await fetch(`${hostApi}/files`);
+    return res.ok ? ((await res.json()) as HostedIndex) : null;
+  } catch {
+    return null;
+  }
+}
+
+/** Something changed on disk: refresh the picker and re-read the open file, unless it was edited here. */
+async function onDiskChange() {
+  hosted = await fetchHostedIndex();
+  buildPicker();
+  if (current.kind !== 'file') return;
+  const open = current.path;
+  const stillThere = hosted?.files.some((f) => f.path === open);
+  if (stillThere && dslEl.value === loadedFromDisk) await loadFile(open);
+}
+
+async function start() {
+  hosted = await fetchHostedIndex();
+  if (hosted && hostApi) {
+    sourceLabel.textContent = 'file';
+    document.title = `${hosted.dir} · Context Map Evolver`;
+    new EventSource(`${hostApi}/events`).addEventListener('message', () => void onDiskChange());
+    const first = initialFile(hosted.files, location.search);
+    if (first) {
+      current = { kind: 'file', path: first.path };
+      buildPicker();
+      await loadFile(first.path);
+      return;
+    }
+  }
+  buildPicker();
+  loadDemo(DEFAULT_DEMO_ID);
+}
+
 buildToggles();
-loadDemo(DEFAULT_DEMO_ID);
+void start();
 
 dslEl.addEventListener('input', update);
 dslEl.addEventListener('scroll', () => {

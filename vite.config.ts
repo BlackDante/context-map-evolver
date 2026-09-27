@@ -9,9 +9,9 @@ export default defineConfig({
   test: {
     include: ['tests/**/*.test.ts'],
     coverage: {
-      include: ['src/**/*.ts'],
-      // DOM wiring and static sample data; everything else is pure and tested
-      exclude: ['src/main.ts', 'src/vite-env.d.ts'],
+      include: ['src/**/*.ts', 'cli/**/*.ts'],
+      // DOM wiring, process wiring and static sample data; everything else is pure and tested
+      exclude: ['src/main.ts', 'src/vite-env.d.ts', 'cli/main.ts', 'cli/open.ts'],
     },
   },
 });

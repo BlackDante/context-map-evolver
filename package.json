@@ -1,9 +1,14 @@
 {
   "name": "context-map-evolver",
-  "version": "0.1.0",
-  "private": true,
+  "version": "0.2.0",
   "type": "module",
   "description": "Lightweight tool for drawing DDD context maps that evolve from diagrams into multi-dimensional decision tools.",
+  "homepage": "https://cme.kamilkielbasa.tech/",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/BlackDante/context-map-evolver.git"
+  },
+  "bugs": "https://github.com/BlackDante/context-map-evolver/issues",
   "keywords": [
     "ddd",
     "domain-driven-design",
@@ -15,22 +20,37 @@
     "cynefin",
     "promise-theory",
     "connascence",
-    "coupling"
+    "coupling",
+    "cli"
   ],
   "author": "Kamil Kiełbasa",
   "license": "MIT",
+  "bin": {
+    "context-map-evolver": "bin/context-map-evolver.js",
+    "cme": "bin/context-map-evolver.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "examples",
+    "docs/DSL.md"
+  ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "tsc && npm run build:app && npm run build:cli",
+    "build:app": "vite build",
+    "build:cli": "vite build --config vite.cli.config.ts",
+    "host": "node bin/context-map-evolver.js host examples",
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "tsc && vitest run && vite build"
+    "check": "tsc && vitest run && npm run build:app && npm run build:cli",
+    "prepublishOnly": "npm run check"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",

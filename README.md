@@ -5,13 +5,25 @@
 <h1 align="center">Context Map Evolver</h1>
 
 [![CI](https://github.com/BlackDante/context-map-evolver/actions/workflows/ci.yml/badge.svg)](https://github.com/BlackDante/context-map-evolver/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/context-map-evolver.svg?color=7c3aed)](https://www.npmjs.com/package/context-map-evolver)
 [![License: MIT](https://img.shields.io/badge/license-MIT-7c3aed.svg)](LICENSE)
 ![Dependencies: 0](https://img.shields.io/badge/runtime_dependencies-0-16a34a.svg)
 ![Status: early beta](https://img.shields.io/badge/status-early_beta-d97706.svg)
 
 **DDD context maps as code — one model that evolves from a diagram into a decision tool.**
 
-**[▶ Try it live — cme.kamilkielbasa.tech](https://cme.kamilkielbasa.tech/)** · [DSL reference](docs/DSL.md) · [Examples](examples)
+**[▶ Try it live — cme.kamilkielbasa.tech](https://cme.kamilkielbasa.tech/)** · [npm](https://www.npmjs.com/package/context-map-evolver) · [DSL reference](docs/DSL.md) · [Examples](examples)
+
+**New in 0.2 — open a folder of your own `.cme` files, straight from npm:**
+
+```bash
+npx context-map-evolver host ./architecture
+```
+
+One command: a local server starts, your browser opens, and every `.cme` file
+under the folder is in the picker — re-read whenever it changes on disk.
+Nothing is installed globally and nothing leaves your machine. Details in
+[Use it on your own files](#use-it-on-your-own-files).
 
 > [!WARNING]
 > **Early beta, and vibe-coded to a frankly irresponsible degree.** Most of this
@@ -24,8 +36,9 @@
 > leaves your machine, and there is no server of mine for a bug to take down or
 > leak from. Your models live in `.cme` files that you export and keep yourself.
 >
-> So: **host it yourself** (`npm run build`, then serve `dist/` from anywhere
-> that serves files) — or just use the instance at
+> So: **run it yourself** (`npx context-map-evolver host <dir>` opens the app
+> on your `.cme` files, or `npm run build` and serve `dist/` from anywhere that
+> serves files) — or just use the instance at
 > **<https://cme.kamilkielbasa.tech/>**, provided as-is, with no uptime promises.
 
 ![Typing a model, then moving the detail slider through four analytical lenses](docs/assets/demo.gif)
@@ -114,12 +127,44 @@ scores are computed, error messages, and recipes.
   slides and docs.
 - **Five built-in demos**, each one level richer than the last — also available
   as files in [`examples/`](examples).
+- **Host a folder** — `npx context-map-evolver host <dir>` serves the app with
+  your `.cme` files in the picker and reloads them as they change on disk.
 
-## Run it locally
+## Use it on your own files
+
+Keep your models as `.cme` files next to the code they describe and open the
+whole folder at once — no install, no upload:
+
+```bash
+npx context-map-evolver host ./architecture
+```
+
+This starts a local server on `127.0.0.1`, opens the app in your browser, and
+lists every `.cme` file under the directory (recursively) in the file picker,
+next to the built-in demos. Files are re-read when they change on disk, so you
+can edit in your IDE and watch the map follow — the reload is skipped while the
+text in the browser has unsaved edits of its own. Point it at a single file to
+open that one first:
+
+```bash
+npx context-map-evolver host docs/context-map.cme --port 8080 --no-open
+```
+
+| Option | |
+|---|---|
+| `-p, --port <n>` | port to listen on (default: first free port from 5180) |
+| `--no-open` | do not open the browser |
+| `-h, --help` · `-v, --version` | |
+
+The server is read-only: it serves the app and the files, nothing else, and only
+listens on localhost. Saving still goes through **export .cme**.
+
+## Develop it
 
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev        # http://localhost:5173 (demos only — hosted mode needs the built CLI)
+npm run host       # build first, then: the CLI on the examples/ folder
 ```
 
 | | |
@@ -127,8 +172,9 @@ npm run dev        # http://localhost:5173
 | `npm test` | unit tests (Vitest) |
 | `npm run test:coverage` | tests with a coverage report |
 | `npm run typecheck` | `tsc` in strict mode |
-| `npm run build` | static bundle in `dist/` — copy it to any static host (asset paths are relative, so a subfolder works too) |
-| `npm run check` | typecheck + tests + build, what CI runs |
+| `npm run build` | static bundle in `dist/` — copy it to any static host (asset paths are relative, so a subfolder works too) — plus the CLI in `dist/cli/` |
+| `npm run check` | typecheck + tests + build, what CI runs (and `prepublishOnly`) |
+| `npm publish` | publishes the package; `files` whitelists `bin/`, `dist/`, `examples/` and the DSL reference |
 
 Requires Node ≥ 20.19.
 
@@ -155,7 +201,13 @@ src/
   highlight.ts  ~1 kB syntax highlighter layered behind a transparent <textarea>
   levels.ts     the four lens presets
   flags.ts      feature flags — unfinished features ship dark
+  host.ts       client side of hosted mode: api discovery, picker values
   main.ts       DOM wiring: editor ↔ map, slider, toggles, import/export
+cli/
+  main.ts       `context-map-evolver host`: resolves the target, listens, opens the browser
+  host.ts       zero-dependency http server: the app + /api/files + /api/events (SSE on change)
+  files.ts      recursive .cme discovery, path-traversal-safe resolution
+  args.ts       argument parsing
 ```
 
 A few decisions worth pointing out:

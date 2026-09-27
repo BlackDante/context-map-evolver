@@ -1,0 +1,41 @@
+name: Publish to npm
+
+# Runs when a GitHub release is published. Authenticates with npm through OIDC
+# ("trusted publishing"), so no long-lived token is stored in the repo.
+#
+# One-time setup on npmjs.com → package → Settings → Trusted publishing:
+#   repository BlackDante/context-map-evolver, workflow publish.yml.
+# The first version of a new package must be published by hand from a machine
+# (`npm publish --access public`) before trusted publishing can be configured.
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+  id-token: write
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          registry-url: https://registry.npmjs.org
+          cache: npm
+      - run: npm install -g npm@latest # trusted publishing needs npm ≥ 11.5
+      - run: npm ci
+      # A release cut for a version that is already on npm (e.g. one published
+      # by hand) must not fail the workflow — it simply has nothing to do.
+      - id: check
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          if npm view "context-map-evolver@$VERSION" version >/dev/null 2>&1; then
+            echo "already on npm: $VERSION — skipping"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          fi
+      - if: steps.check.outputs.skip != 'true'
+        run: npm publish --access public --provenance # prepublishOnly runs the full check
