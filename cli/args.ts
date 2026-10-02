@@ -2,7 +2,7 @@
 
 export interface HostArgs {
   command: 'host';
-  /** Directory (or a single .cme file) to host. */
+  /** Directory (or a single .cme / .cme.ts file) to host. */
   target: string;
   /** Explicit port, or undefined to pick a free one starting from the default. */
   port?: number;
@@ -49,11 +49,15 @@ export class UsageError extends Error {}
 export const USAGE = `Context Map Evolver — DDD context maps as code
 
 Usage
-  context-map-evolver host [directory|file.cme] [options]
+  context-map-evolver host [directory|file] [options]
 
   Serves the app locally with every .cme file found under the directory
   (recursively) in the file picker, and opens it in your browser. Files are
   re-read when they change on disk.
+
+  Experimental: models written in TypeScript (.cme.ts) are picked up too, and
+  shown once the app is opened with ?features=typescript. Hosting a single
+  .cme.ts file switches that on for you.
 
 Options
   -p, --port <n>   port to listen on (default: first free port from ${DEFAULT_PORT})
@@ -64,4 +68,5 @@ Options
 Examples
   npx context-map-evolver host ./architecture
   npx context-map-evolver host docs/context-map.cme --port 8080
+  npx context-map-evolver host docs/context-map.cme.ts
 `;

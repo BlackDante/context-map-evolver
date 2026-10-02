@@ -3,7 +3,7 @@ import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { isCme, listCmeFiles, resolveCme } from '../cli/files';
-import { createHostServer, META_TAG, type HostServer } from '../cli/host';
+import { appUrl, CONTENT_SECURITY_POLICY, createHostServer, META_TAG, type HostServer } from '../cli/host';
 import { DEFAULT_PORT, UsageError, parseArgs } from '../cli/args';
 import { browserCommand } from '../cli/open';
 
@@ -23,6 +23,8 @@ beforeAll(async () => {
   await writeFile(path.join(root, 'zeta.cme'), 'map "Zeta"\n');
   await writeFile(path.join(root, 'alpha.CME'), 'map "Alpha"\n');
   await writeFile(path.join(root, 'billing', 'payments.cme'), 'map "Payments"\ncontext Ledger {}\n');
+  await writeFile(path.join(root, 'billing', 'payments.cme.ts'), "export default map('Payments');\n");
+  await writeFile(path.join(root, 'billing', 'ledger.ts'), 'export const notAMap = 1;\n');
   await writeFile(path.join(root, 'notes.txt'), 'not a model');
   await writeFile(path.join(root, 'node_modules', 'x', 'dep.cme'), 'map "hidden"\n');
   await writeFile(path.join(root, '.git', 'stash.cme'), 'map "hidden"\n');
@@ -41,16 +43,21 @@ afterAll(async () => {
   await rm(path.dirname(root), { recursive: true, force: true });
 });
 
-describe('listing .cme files', () => {
+describe('listing model files', () => {
   it('finds files recursively, case-insensitively, sorted by path', async () => {
     const files = await listCmeFiles(root);
-    expect(files.map((f) => f.path)).toEqual(['alpha.CME', 'billing/payments.cme', 'zeta.cme']);
-    expect(files.map((f) => f.name)).toEqual(['alpha', 'billing/payments', 'zeta']);
+    expect(files.map((f) => f.path)).toEqual(['alpha.CME', 'billing/payments.cme', 'billing/payments.cme.ts', 'zeta.cme']);
   });
 
-  it('skips dot-directories, dependency trees and non-.cme files', async () => {
+  it('names a TypeScript model apart from the DSL one next to it', async () => {
+    const files = await listCmeFiles(root);
+    expect(files.map((f) => f.name)).toEqual(['alpha', 'billing/payments', 'billing/payments.ts', 'zeta']);
+  });
+
+  it('skips dot-directories, dependency trees and everything that is not a model', async () => {
     const paths = (await listCmeFiles(root)).map((f) => f.path);
     expect(paths.some((p) => p.includes('node_modules') || p.includes('.git') || p.endsWith('.txt'))).toBe(false);
+    expect(paths).not.toContain('billing/ledger.ts'); // plain .ts is somebody's code, not a map
   });
 
   it('returns nothing for a directory that does not exist', async () => {
@@ -63,12 +70,21 @@ describe('listing .cme files', () => {
     expect(isCme('a.cme.bak')).toBe(false);
     expect(isCme('cme')).toBe(false);
   });
+
+  it('recognises TypeScript models by their double extension only', () => {
+    expect(isCme('a.cme.ts')).toBe(true);
+    expect(isCme('a.CME.TS')).toBe(true);
+    expect(isCme('a.ts')).toBe(false);
+    expect(isCme('a.cme.tsx')).toBe(false);
+    expect(isCme('a.cme.ts.swp')).toBe(false);
+  });
 });
 
 describe('resolving a requested path', () => {
   it('resolves relative .cme paths inside the root', () => {
     expect(resolveCme(root, 'zeta.cme')).toBe(path.join(root, 'zeta.cme'));
     expect(resolveCme(root, 'billing/payments.cme')).toBe(path.join(root, 'billing', 'payments.cme'));
+    expect(resolveCme(root, 'billing/payments.cme.ts')).toBe(path.join(root, 'billing', 'payments.cme.ts'));
   });
 
   it('refuses anything that escapes the root or is not a model', () => {
@@ -77,6 +93,7 @@ describe('resolving a requested path', () => {
     expect(resolveCme(root, path.join(root, '..', 'secret.cme'))).toBeNull(); // absolute
     expect(resolveCme(root, 'C:/models/x.cme')).toBeNull();
     expect(resolveCme(root, 'notes.txt')).toBeNull();
+    expect(resolveCme(root, 'billing/ledger.ts')).toBeNull();
     expect(resolveCme(root, 'zeta.cme\0')).toBeNull();
     expect(resolveCme(root, '')).toBeNull();
     expect(resolveCme(root, '.cme')).not.toBeNull(); // odd, but inside and a .cme
@@ -110,7 +127,12 @@ describe('host server', () => {
     const body = await res.json();
     expect(body.dir).toBe('models');
     expect(body.root).toBe(root);
-    expect(body.files.map((f: { path: string }) => f.path)).toEqual(['alpha.CME', 'billing/payments.cme', 'zeta.cme']);
+    expect(body.files.map((f: { path: string }) => f.path)).toEqual([
+      'alpha.CME',
+      'billing/payments.cme',
+      'billing/payments.cme.ts',
+      'zeta.cme',
+    ]);
   });
 
   it('serves one file as plain text, nested paths included', async () => {
@@ -118,6 +140,23 @@ describe('host server', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('content-type')).toContain('text/plain');
     expect(await res.text()).toBe('map "Payments"\ncontext Ledger {}\n');
+  });
+
+  it('serves a TypeScript model as text too — it is run by the browser, not here', async () => {
+    const res = await fetch(`${base}/api/files/billing/payments.cme.ts`);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toContain('text/plain');
+    expect(await res.text()).toBe("export default map('Payments');\n");
+    expect((await fetch(`${base}/api/files/billing/ledger.ts`)).status).toBe(404);
+  });
+
+  it('keeps what a model can reach on this machine', async () => {
+    // a TypeScript model is code running on an origin that can read every hosted file
+    expect(CONTENT_SECURITY_POLICY).toContain("connect-src 'self'");
+    expect(CONTENT_SECURITY_POLICY).toContain("script-src 'self' 'unsafe-eval'");
+    for (const url of ['/', '/assets/app.js', '/api/files', '/api/files/zeta.cme', '/assets/nope.js']) {
+      expect((await fetch(`${base}${url}`)).headers.get('content-security-policy'), url).toBe(CONTENT_SECURITY_POLICY);
+    }
   });
 
   it('answers 404 for missing files, traversal attempts and unknown endpoints', async () => {
@@ -174,6 +213,12 @@ describe('command line', () => {
     expect(() => parseArgs(['host', '--port', 'abc'])).toThrow(/--port expects/);
     expect(() => parseArgs(['host', '--port', '70000'])).toThrow(/--port expects/);
     expect(() => parseArgs(['host', '--port'])).toThrow(/--port expects/);
+  });
+
+  it('opens the app on the hosted file, switching TypeScript on only when one was asked for', () => {
+    expect(appUrl(5180)).toBe('http://localhost:5180/');
+    expect(appUrl(5180, 'pay ments.cme')).toBe('http://localhost:5180/?file=pay%20ments.cme');
+    expect(appUrl(5180, 'map.cme.ts')).toBe('http://localhost:5180/?file=map.cme.ts&features=typescript');
   });
 
   it('picks the right browser command per platform', () => {

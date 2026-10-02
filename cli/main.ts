@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { stat } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { DEFAULT_PORT, USAGE, UsageError, parseArgs, type HostArgs } from './args';
-import { createHostServer } from './host';
+import { appUrl, createHostServer } from './host';
 import { listCmeFiles } from './files';
 import { openInBrowser } from './open';
 
@@ -61,11 +61,15 @@ async function host(args: HostArgs): Promise<number> {
     return 1;
   }
 
-  const url = `http://localhost:${port}/${initialFile ? `?file=${encodeURIComponent(initialFile)}` : ''}`;
+  const url = appUrl(port, initialFile);
   const files = await listCmeFiles(root);
+  const ts = files.filter((f) => /\.ts$/i.test(f.path)).length;
+  const dsl = files.length - ts;
   console.log(`Context Map Evolver ${version()}`);
   console.log(`  hosting  ${root}`);
-  console.log(`  files    ${files.length} .cme file${files.length === 1 ? '' : 's'}${files.length ? '' : ' — drop one in, it will show up'}`);
+  console.log(`  files    ${dsl} .cme file${dsl === 1 ? '' : 's'}${files.length ? '' : ' — drop one in, it will show up'}`);
+  // TypeScript models ship behind a feature flag: say how to see the ones that are there
+  if (ts) console.log(`           ${ts} .cme.ts file${ts === 1 ? '' : 's'} — experimental, shown with ${appUrl(port)}?features=typescript`);
   console.log(`  open     ${url}`);
   console.log('  press Ctrl+C to stop');
   if (args.open) openInBrowser(url);

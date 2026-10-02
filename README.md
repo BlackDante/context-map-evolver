@@ -12,7 +12,7 @@
 
 **DDD context maps as code — one model that evolves from a diagram into a decision tool.**
 
-**[▶ Try it live — cme.kamilkielbasa.tech](https://cme.kamilkielbasa.tech/)** · [npm](https://www.npmjs.com/package/context-map-evolver) · [DSL reference](docs/DSL.md) · [Examples](examples)
+**[▶ Try it live — cme.kamilkielbasa.tech](https://cme.kamilkielbasa.tech/)** · [npm](https://www.npmjs.com/package/context-map-evolver) · [DSL reference](docs/DSL.md) · [TypeScript reference](docs/TYPESCRIPT.md) · [Examples](examples)
 
 **New in 0.2 — open a folder of your own `.cme` files, straight from npm:**
 
@@ -113,20 +113,59 @@ next to the code it describes.
 **→ [Full DSL reference](docs/DSL.md)** — every keyword, the grammar, how the
 scores are computed, error messages, and recipes.
 
+### …or TypeScript *(experimental)*
+
+The same model can be written as code. Contexts become variables, so your IDE
+completes every option and a typo in a name is a compile error. This ships
+behind a [feature flag](#feature-flags): open the app with
+[`?features=typescript`](https://cme.kamilkielbasa.tech/?features=typescript).
+
+```ts
+import { context, map } from 'context-map-evolver';
+
+const legal = context('Legal', {
+  subdomain: 'core',
+  cynefin: 'complex',
+  questions: ['When can a license be used, and where?'],
+});
+const availability = context('Availability', { subdomain: 'supporting', cynefin: 'complicated' });
+
+legal.promises('authoritative licensing rules').to(availability);
+
+// the context on the left is UPSTREAM, the argument is DOWNSTREAM
+legal
+  .upstreamOf(availability, { type: 'customer-supplier', upstream: 'OHS', downstream: 'ACL', coupling: 2 })
+  .connascence('meaning', 'distant', 3)
+  .connascence('value', 'distant', 2);
+
+export default map('Media Rights Platform', legal, availability);
+```
+
+Save it as `something.cme.ts`. Both languages build the same model, so every
+lens works the same — and, with the flag on, the `DSL | TS` switch under the
+editor converts a model from one to the other, in either direction.
+
+**→ [TypeScript reference](docs/TYPESCRIPT.md)** — the builder API, how it maps
+to the DSL, error messages, and how a map file is run.
+
 ## Features
 
 - **Live editor** — the map re-renders on every keystroke, with syntax
   highlighting and line-numbered diagnostics. The parser recovers from errors,
   so a half-typed line never blanks the diagram.
+- **Two languages, one model** *(experimental, behind the `typescript`
+  [flag](#feature-flags))* — write a map in the `.cme` DSL or in
+  [TypeScript](docs/TYPESCRIPT.md), and convert between them with one click.
+  TypeScript maps are edited live too, in the same editor.
 - **Automatic layout** — deterministic (same model → same picture, no jitter
   during a talk), untangles edge crossings, leaves room for edge labels.
   **re-layout** tries another arrangement; `at x y` pins a context by hand.
 - **Parallel and bidirectional relations** — declare `A -> B` as many times as
   you need; the edges fan out with their own labels.
 - **Import / export** — `.cme` files (plain DSL text) and standalone **SVG** for
-  slides and docs.
+  slides and docs; `.cme.ts` files too when TypeScript is switched on.
 - **Five built-in demos**, each one level richer than the last — also available
-  as files in [`examples/`](examples).
+  as files in [`examples/`](examples), in both languages.
 - **Host a folder** — `npx context-map-evolver host <dir>` serves the app with
   your `.cme` files in the picker and reloads them as they change on disk.
 
@@ -157,7 +196,19 @@ npx context-map-evolver host docs/context-map.cme --port 8080 --no-open
 | `-h, --help` · `-v, --version` | |
 
 The server is read-only: it serves the app and the files, nothing else, and only
-listens on localhost. Saving still goes through **export .cme**.
+listens on localhost. Saving still goes through **export**.
+
+**TypeScript maps (experimental).** `.cme.ts` files in the folder are picked up
+too, and join the picker once the app is opened with `?features=typescript`;
+pointing `host` at a single `.cme.ts` file adds that for you. They are served as
+text like the rest — the server never executes them. They run in your browser,
+in a Web Worker, under a Content Security Policy that keeps them from sending
+anything off your machine; a `.cme.ts` file is still a program, so read one from
+somebody else before you open it
+([details](docs/TYPESCRIPT.md#how-a-map-file-runs)).
+
+For completion and type-checking of `.cme.ts` files in your IDE, add the package
+to that project: `npm install --save-dev context-map-evolver`.
 
 ## Develop it
 
@@ -172,22 +223,29 @@ npm run host       # build first, then: the CLI on the examples/ folder
 | `npm test` | unit tests (Vitest) |
 | `npm run test:coverage` | tests with a coverage report |
 | `npm run typecheck` | `tsc` in strict mode |
-| `npm run build` | static bundle in `dist/` — copy it to any static host (asset paths are relative, so a subfolder works too) — plus the CLI in `dist/cli/` |
+| `npm run build` | static bundle in `dist/` — copy it to any static host (asset paths are relative, so a subfolder works too) — plus the CLI in `dist/cli/` and the builder library with its types in `dist/lib/` |
 | `npm run check` | typecheck + tests + build, what CI runs (and `prepublishOnly`) |
-| `npm publish` | publishes the package; `files` whitelists `bin/`, `dist/`, `examples/` and the DSL reference |
+| `npm publish` | publishes the package; `files` whitelists `bin/`, `dist/`, `examples/` and the two language references |
 
 Requires Node ≥ 20.19.
 
 ## How it is built
 
-TypeScript and hand-written SVG. **No runtime dependencies** — no diagram
-library, no graph library, no editor component, no framework. The production
-bundle is ~16 kB gzipped, HTML and CSS included.
+TypeScript and hand-written SVG — no diagram library, no graph library, no
+editor component, no framework. The package installs **no dependencies**, and
+the app is ~20 kB gzipped, HTML and CSS included.
+
+There is one piece of third-party code in the build:
+[sucrase](https://github.com/alangpierce/sucrase), which strips the types from
+TypeScript maps. It is bundled into a separate Web Worker chunk (~49 kB gzipped)
+that is fetched only when a TypeScript map is first opened — if you only ever
+write `.cme`, or leave the `typescript` flag off, it is never downloaded.
 
 ```
-DSL text ──parse──▶ ContextMap ──layout──▶ positions ──render──▶ SVG string
-                        │
-                        └──analysis──▶ risk scores · Ca/Ce/instability ──▶ badges & node footers
+DSL text ───parse───┐
+                    ├─▶ ContextMap ──layout──▶ positions ──render──▶ SVG string
+TS text ──evaluate──┘       │
+  (in a worker)             └──analysis──▶ risk scores · Ca/Ce/instability ──▶ badges & node footers
 ```
 
 ```
@@ -198,7 +256,13 @@ src/
   geometry.ts   pure helpers: border points, Bézier points, edge fan-out, text fitting
   render.ts     ContextMap + active layers → SVG markup (a pure function)
   analysis.ts   connascence scoring, Ca/Ce/instability, SDP check, strategic heuristics
-  highlight.ts  ~1 kB syntax highlighter layered behind a transparent <textarea>
+  builder.ts    the TypeScript way to write a model: context(), map(), …; also the npm library entry
+  tsmap.ts      TS text → ContextMap: strip types, run against the builder, take the default export
+  tsworker.ts   the Web Worker that tsmap runs in
+  tsrunner.ts   main-thread side of the worker: lazy start, latest-wins queue, timeout
+  convert.ts    ContextMap → DSL text / TypeScript text (the editor's language switch)
+  language.ts   which language a file is in, by its name
+  highlight.ts  small syntax highlighter (both languages) layered behind a transparent <textarea>
   levels.ts     the four lens presets
   flags.ts      feature flags — unfinished features ship dark
   host.ts       client side of hosted mode: api discovery, picker values
@@ -206,14 +270,15 @@ src/
 cli/
   main.ts       `context-map-evolver host`: resolves the target, listens, opens the browser
   host.ts       zero-dependency http server: the app + /api/files + /api/events (SSE on change)
-  files.ts      recursive .cme discovery, path-traversal-safe resolution
+  files.ts      recursive .cme / .cme.ts discovery, path-traversal-safe resolution
   args.ts       argument parsing
 ```
 
 A few decisions worth pointing out:
 
-- **Everything except `main.ts` is pure.** `render()` returns a string and never
-  touches the DOM, which is what makes the SVG output unit-testable: the tests
+- **Everything except the wiring (`main.ts`, `tsworker.ts`) is pure.**
+  `render()` returns a string and never touches the DOM, which is what makes
+  the SVG output unit-testable: the tests
   parse it with a strict XML parser and assert on real elements and geometry —
   arrow endpoints on box borders, curves bowing to opposite sides, labels not
   stacking, risk encoded as colour, thickness and arrowhead.
@@ -227,8 +292,15 @@ A few decisions worth pointing out:
   fewest crossings, then smallest area).
 - **All user text is escaped on the way out** — models are meant to be shared as
   files, so the DSL is treated as untrusted input.
+- **TypeScript maps are programs, and are treated as such.** They are evaluated
+  in a Web Worker, away from the page, where a run that does not return can be
+  terminated; the editor re-runs the file on every keystroke, so a half-typed
+  endless loop must not freeze the tab. Nothing is type-checked in the browser,
+  so the builder validates its input at run time and — like the parser — reports
+  problems instead of throwing. The two languages are held to each other by
+  tests: every example exists in both and must build the same model.
 
-220+ tests, ~99% line coverage of everything outside `main.ts`.
+340+ tests, ~98% line coverage of everything outside the DOM and process wiring.
 
 ## Feature flags
 
@@ -238,6 +310,7 @@ deployable. Flags are off by default; switch one on for a single visit with
 
 | Flag | What it enables |
 |---|---|
+| `typescript` | *Experimental.* Models written in [TypeScript](docs/TYPESCRIPT.md): the `DSL \| TS` switch under the editor, `.cme.ts` import and export, and `.cme.ts` files in hosted mode. While it is off, the app never runs a line of model code. |
 | `analysis` | *Experimental.* A side panel that reads the model back to you: investment advice per subdomain, classification smells, the promise ledger, coupling per context, Stable Dependencies violations, and boundaries ranked by connascence risk. |
 
 ## Where it started

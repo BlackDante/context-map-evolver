@@ -8,10 +8,14 @@ import { LEVELS } from './levels';
 import { esc } from './escape';
 import { resolveFlags } from './flags';
 import type { ContextMap } from './model';
+import { toText } from './convert';
+import { extensionOf, languageOf, type Lang } from './language';
+import { createTsRunner, type WorkerLike } from './tsrunner';
 import {
   fileUrl,
   hostApiFrom,
   initialFile,
+  offeredFiles,
   parseSource,
   sourceValue,
   type HostedIndex,
@@ -35,6 +39,24 @@ const togglesEl = $<HTMLDivElement>('layerToggles');
 let overrides: Partial<Layers> = {};
 let seed = 1;
 
+// The editor holds a model in one of two languages. DSL is parsed right here;
+// TypeScript is a program, so it runs in a worker (spawned on first use) and
+// its model arrives a moment later. TypeScript ships dark: without the
+// `typescript` flag the language never leaves 'dsl' and the worker is never spawned.
+let lang: Lang = 'dsl';
+
+/** The language a file is read as — everything is DSL text while TypeScript is off. */
+function fileLanguage(name: string): Lang {
+  return flags.typescript ? languageOf(name) : 'dsl';
+}
+
+let model: ContextMap = { title: 'Untitled map', contexts: [], relations: [] };
+let errors: string[] = [];
+let revision = 0; // bumped on every text change, so a late TypeScript result can tell it is stale
+const tsRunner = createTsRunner(
+  () => new Worker(new URL('./tsworker.ts', import.meta.url), { type: 'module' }) as WorkerLike
+);
+
 const TOGGLE_DEFS: { key: keyof Layers; label: string }[] = [
   { key: 'relations', label: 'Relations' },
   { key: 'classification', label: 'Classification' },
@@ -53,7 +75,7 @@ function buildToggles() {
     const cb = wrap.querySelector('input')!;
     cb.addEventListener('change', () => {
       overrides[def.key] = cb.checked;
-      update();
+      draw();
     });
     togglesEl.appendChild(wrap);
   }
@@ -71,14 +93,32 @@ function syncToggleBoxes(layers: Layers) {
 }
 
 function paintHighlight() {
-  dslHlEl.innerHTML = highlight(dslEl.value);
+  dslHlEl.innerHTML = highlight(dslEl.value, lang);
   dslHlEl.scrollTop = dslEl.scrollTop;
   dslHlEl.scrollLeft = dslEl.scrollLeft;
 }
 
+/** The text changed: read the model back out of it, then redraw. */
 function update() {
   paintHighlight();
-  const { map, errors } = parse(dslEl.value);
+  const rev = ++revision;
+  if (lang === 'dsl') {
+    ({ map: model, errors } = parse(dslEl.value));
+    draw();
+    return;
+  }
+  tsRunner.run(dslEl.value, (result) => {
+    if (rev !== revision) return;
+    // a file that does not run keeps the last good map on screen, like a half-typed DSL line
+    if (result.map) model = result.map;
+    errors = result.errors;
+    draw();
+  });
+}
+
+/** Redraw the current model — all that the slider, the toggles and re-layout need. */
+function draw() {
+  const map = model;
   const layers = activeLayers();
   levelNameEl.textContent = LEVELS[Number(levelEl.value)].name;
   syncToggleBoxes(layers);
@@ -243,6 +283,7 @@ function loadDemo(id: string) {
   if (!demo) return;
   current = { kind: 'demo', id };
   demoSelect.value = sourceValue(current);
+  setLanguage('dsl');
   dslEl.value = demo.dsl;
   levelEl.value = String(demo.level); // jump to the level that shows it best
   overrides = {};
@@ -265,6 +306,7 @@ async function loadFile(path: string) {
   current = { kind: 'file', path };
   loadedFromDisk = text;
   demoSelect.value = sourceValue(current);
+  setLanguage(fileLanguage(path));
   dslEl.value = text;
   seed = 1; // fresh deterministic layout for the new model
   update();
@@ -280,7 +322,9 @@ async function fetchHostedIndex(): Promise<HostedIndex | null> {
   if (!hostApi) return null;
   try {
     const res = await fetch(`${hostApi}/files`);
-    return res.ok ? ((await res.json()) as HostedIndex) : null;
+    if (!res.ok) return null;
+    const index = (await res.json()) as HostedIndex;
+    return { ...index, files: offeredFiles(index.files, flags.typescript) };
   } catch {
     return null;
   }
@@ -325,13 +369,60 @@ dslEl.addEventListener('scroll', () => {
 levelEl.addEventListener('input', () => {
   // moving the slider clears manual overrides so the level is authoritative
   overrides = {};
-  update();
+  draw();
 });
 
 $('relayout').addEventListener('click', () => {
   seed++;
-  update();
+  draw();
 });
+
+// --- model language: DSL ⇄ TypeScript ---------------------------------------
+
+const exportBtn = $<HTMLButtonElement>('exportCme');
+const langButtons: Record<Lang, HTMLButtonElement> = { dsl: $('langDsl'), ts: $('langTs') };
+
+// The last switch, so that switching straight back returns the text that was
+// there — comments, layout and all — instead of a second, lossy conversion.
+let lastSwitch: { from: Lang; original: string; converted: string } | null = null;
+
+/** Make `next` the language the editor text is read as. Does not touch the text. */
+function setLanguage(next: Lang) {
+  lang = next;
+  lastSwitch = null;
+  for (const [key, btn] of Object.entries(langButtons)) btn.setAttribute('aria-pressed', String(key === next));
+  exportBtn.textContent = `export ${extensionOf(next)}`;
+  exportBtn.title = `Download the model as ${extensionOf(next)}`;
+}
+
+/** Rewrite the model in the other language. */
+function switchLanguage(next: Lang) {
+  if (next === lang) return;
+  const original = dslEl.value;
+  const apply = (converted: string) => {
+    const from = lang;
+    setLanguage(next);
+    lastSwitch = { from, original, converted };
+    dslEl.value = converted;
+    update();
+  };
+  if (lastSwitch && lastSwitch.from === next && lastSwitch.converted === original) return apply(lastSwitch.original);
+  if (lang === 'dsl') return apply(toText(parse(original).map, next));
+  // TypeScript has to run first; a file that does not run has no model to convert
+  const rev = revision;
+  tsRunner.run(original, (result) => {
+    if (rev !== revision) return; // the text changed while it ran
+    if (result.map) return apply(toText(result.map, next));
+    errors = [...result.errors, 'fix this before converting to DSL'];
+    draw();
+  });
+}
+
+// feature-flagged: the switch stays `hidden` in the markup unless `typescript` is on
+if (flags.typescript) {
+  $('langSwitch').hidden = false;
+  for (const [key, btn] of Object.entries(langButtons)) btn.addEventListener('click', () => switchLanguage(key as Lang));
+}
 
 // the analysis panel ships dark: its button and <aside> stay `hidden` in the
 // markup unless the feature flag is on
@@ -391,26 +482,32 @@ function download(filename: string, blob: Blob) {
 
 /** Derive a safe file stem from the model title, e.g. "Media Rights" → media-rights. */
 function modelStem(): string {
-  const title = parse(dslEl.value).map.title;
-  const stem = title
+  const stem = model.title
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
   return stem || 'context-map';
 }
 
-// --- export / import the model as .cme (the DSL text is the model) ----------
+// --- export / import the model as .cme or .cme.ts (the text is the model) ---
 
-$('exportCme').addEventListener('click', () => {
-  download(`${modelStem()}.cme`, new Blob([dslEl.value], { type: 'text/plain;charset=utf-8' }));
+exportBtn.addEventListener('click', () => {
+  download(`${modelStem()}${extensionOf(lang)}`, new Blob([dslEl.value], { type: 'text/plain;charset=utf-8' }));
 });
 
 const cmeFile = $<HTMLInputElement>('cmeFile');
-$('importCme').addEventListener('click', () => cmeFile.click());
+const importBtn = $<HTMLButtonElement>('importCme');
+if (flags.typescript) {
+  cmeFile.accept = '.cme,.ts,text/plain';
+  importBtn.title = 'Import a .cme or .cme.ts model';
+}
+importBtn.addEventListener('click', () => cmeFile.click());
 cmeFile.addEventListener('change', async () => {
   const file = cmeFile.files?.[0];
   if (!file) return;
-  dslEl.value = await file.text();
+  const text = await file.text();
+  setLanguage(fileLanguage(file.name));
+  dslEl.value = text;
   cmeFile.value = ''; // allow re-importing the same file
   seed = 1; // fresh deterministic layout for the new model
   update();

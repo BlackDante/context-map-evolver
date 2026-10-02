@@ -15,6 +15,7 @@
     "context-map",
     "bounded-context",
     "dsl",
+    "typescript",
     "svg",
     "diagram",
     "cynefin",
@@ -25,6 +26,14 @@
   ],
   "author": "Kamil Kiełbasa",
   "license": "MIT",
+  "exports": {
+    ".": {
+      "types": "./dist/lib/builder.d.ts",
+      "default": "./dist/lib/builder.js"
+    },
+    "./package.json": "./package.json"
+  },
+  "types": "./dist/lib/builder.d.ts",
   "bin": {
     "context-map-evolver": "bin/context-map-evolver.js",
     "cme": "bin/context-map-evolver.js"
@@ -33,29 +42,32 @@
     "bin",
     "dist",
     "examples",
-    "docs/DSL.md"
+    "docs/DSL.md",
+    "docs/TYPESCRIPT.md"
   ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
     "dev": "vite",
-    "build": "tsc && npm run build:app && npm run build:cli",
+    "build": "tsc && npm run build:app && npm run build:cli && npm run build:lib",
     "build:app": "vite build",
     "build:cli": "vite build --config vite.cli.config.ts",
+    "build:lib": "vite build --config vite.lib.config.ts && tsc -p tsconfig.lib.json",
     "host": "node bin/context-map-evolver.js host examples",
     "preview": "vite preview",
     "typecheck": "tsc",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "check": "tsc && vitest run && npm run build:app && npm run build:cli",
+    "check": "tsc && vitest run && npm run build:app && npm run build:cli && npm run build:lib",
     "prepublishOnly": "npm run check"
   },
   "devDependencies": {
     "@types/node": "^22.20.4",
     "@vitest/coverage-v8": "^5.0.1",
     "jsdom": "^30.1.0",
+    "sucrase": "^3.35.1",
     "typescript": "^7.0.2",
     "vite": "^8.3.0",
     "vitest": "^5.0.1"

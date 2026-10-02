@@ -52,9 +52,9 @@
               <select id="demoSelect"></select>
             </label>
             <div class="pane-actions">
-              <button id="copyDsl" class="ghost-btn" title="Copy DSL to clipboard">copy</button>
+              <button id="copyDsl" class="ghost-btn" title="Copy the model text to the clipboard">copy</button>
               <button id="importCme" class="ghost-btn" title="Import a .cme model">import</button>
-              <button id="exportCme" class="ghost-btn" title="Download model as .cme">export .cme</button>
+              <button id="exportCme" class="ghost-btn" title="Download the model as .cme">export .cme</button>
               <input id="cmeFile" type="file" accept=".cme,text/plain" hidden />
             </div>
           </div>
@@ -62,7 +62,14 @@
             <pre id="dslHl" class="hl" aria-hidden="true"></pre>
             <textarea id="dsl" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
           </div>
-          <div class="parse-status" id="parseStatus"></div>
+          <div class="editor-foot">
+            <div class="parse-status" id="parseStatus"></div>
+            <!-- feature-flagged (src/flags.ts): revealed by main.ts when `typescript` is on -->
+            <div class="lang-switch" id="langSwitch" role="group" aria-label="Model language" hidden>
+              <button id="langDsl" class="lang-btn" aria-pressed="true" title="Write the model in the .cme DSL — converts the current model (comments are not carried over)">DSL</button>
+              <button id="langTs" class="lang-btn" aria-pressed="false" title="Write the model in TypeScript — converts the current model (comments are not carried over)">TS</button>
+            </div>
+          </div>
         </section>
 
         <section class="map-pane">

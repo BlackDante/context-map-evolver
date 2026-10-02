@@ -1,11 +1,14 @@
 // Client side of `context-map-evolver host`: when the page is served by the CLI
 // it carries a <meta name="cme-host"> tag pointing at a small read-only API
-// (see cli/host.ts). On a static deploy the tag is absent and none of this runs.
+// (see cli/host.ts) that lists the model files on disk — .cme and .cme.ts. On a
+// static deploy the tag is absent and none of this runs.
+
+import { languageOf } from './language';
 
 export interface HostedFile {
   /** Path relative to the hosted directory, forward slashes. */
   path: string;
-  /** Display name — the path without its .cme extension. */
+  /** Display name — the path without `.cme` (a TypeScript model keeps its `.ts`). */
   name: string;
 }
 
@@ -15,13 +18,18 @@ export interface HostedIndex {
   files: HostedFile[];
 }
 
+/** The hosted files the app offers: TypeScript models only while that feature is on. */
+export function offeredFiles(files: HostedFile[], typescript: boolean): HostedFile[] {
+  return typescript ? files : files.filter((f) => languageOf(f.path) === 'dsl');
+}
+
 /** The API base when hosted by the CLI, or null on a static deploy. */
 export function hostApiFrom(doc: Document): string | null {
   const content = doc.querySelector('meta[name="cme-host"]')?.getAttribute('content')?.trim();
   return content ? content.replace(/\/+$/, '') : null;
 }
 
-/** URL of one file's DSL text; each path segment is encoded on its own so `/` survives. */
+/** URL of one file's text; each path segment is encoded on its own so `/` survives. */
 export function fileUrl(api: string, filePath: string): string {
   return `${api}/files/${filePath.split('/').map(encodeURIComponent).join('/')}`;
 }

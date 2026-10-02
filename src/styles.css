@@ -105,10 +105,23 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--ink); 
 .hl-nu { color: #c2410c; }
 .hl-id { color: #1e293b; }
 .hl-po { color: #0d9488; font-weight: 700; }
+/* status on the left, the language of the model on the right — like an IDE's status bar */
+.editor-foot { display: flex; align-items: center; gap: 10px; padding-right: 10px; border-top: 1px solid var(--line); }
 .parse-status {
-  padding: 7px 14px; font-size: 11.5px; border-top: 1px solid var(--line);
+  flex: 1; min-width: 0;
+  padding: 7px 0 7px 14px; font-size: 11.5px;
   font-family: ui-monospace, monospace;
 }
+.lang-switch { display: flex; flex: none; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.lang-switch[hidden] { display: none; }
+.lang-btn {
+  font-size: 10.5px; font-weight: 600; letter-spacing: .03em; padding: 2px 8px;
+  border: 0; background: #fff; color: var(--muted); cursor: pointer;
+}
+.lang-btn + .lang-switch[hidden] { display: none; }
+.lang-btn { border-left: 1px solid var(--line); }
+.lang-btn:hover { color: var(--ink); }
+.lang-btn[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .parse-status.ok { color: #16a34a; }
 .parse-status.error { color: #dc2626; }
 

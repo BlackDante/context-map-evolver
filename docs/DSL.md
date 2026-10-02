@@ -17,6 +17,11 @@ Sales -> Billing
 
 That is a complete model. Everything below is optional enrichment.
 
+> Prefer code to a DSL? The same model can be written in TypeScript, with your
+> IDE checking it — see the [TypeScript reference](TYPESCRIPT.md). Experimental:
+> open the app with `?features=typescript`, and the editor converts between the
+> two.
+
 **Contents**
 
 - [Five-minute tutorial](#five-minute-tutorial)
@@ -471,5 +476,5 @@ context Identity { promise "tokens are valid for 15 minutes" }
 `(−)` arrow coming back means the provider has promised something nobody has
 committed to consuming (or the other way round).
 
-More complete models live in [`examples/`](../examples) — import any of them
-with the **import** button.
+More complete models live in [`examples/`](../examples), each in both
+languages — import any of them with the **import** button.

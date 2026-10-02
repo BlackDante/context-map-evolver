@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { describe, expect, it } from 'vitest';
-import { fileUrl, hostApiFrom, initialFile, parseSource, sourceValue } from '../src/host';
+import { fileUrl, hostApiFrom, initialFile, offeredFiles, parseSource, sourceValue } from '../src/host';
 
 const page = (head: string) => new DOMParser().parseFromString(`<html><head>${head}</head><body></body></html>`, 'text/html');
 
@@ -26,6 +26,18 @@ describe('hosted-mode client', () => {
     expect(initialFile(files, '?file=missing.cme')?.path).toBe('a.cme');
     expect(initialFile(files, '')?.path).toBe('a.cme');
     expect(initialFile([], '?file=a.cme')).toBeUndefined();
+  });
+
+  it('offers TypeScript models only while that feature is on', () => {
+    const files = [
+      { path: 'a.cme', name: 'a' },
+      { path: 'a.cme.ts', name: 'a.ts' },
+      { path: 'sub/b.CME.TS', name: 'sub/b.TS' },
+    ];
+    expect(offeredFiles(files, true)).toEqual(files);
+    expect(offeredFiles(files, false)).toEqual([files[0]]);
+    // a link to a hidden file falls back to what is on offer instead of opening it
+    expect(initialFile(offeredFiles(files, false), '?file=a.cme.ts')?.path).toBe('a.cme');
   });
 
   it('round-trips picker values for files and demos', () => {

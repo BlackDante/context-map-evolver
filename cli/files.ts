@@ -1,18 +1,19 @@
-// Discovering and safely resolving the .cme files under the hosted directory.
+// Discovering and safely resolving the model files under the hosted directory:
+// `.cme` (the DSL) and `.cme.ts` (TypeScript — plain `.ts` is somebody's code, not a map).
 import { readdir } from 'node:fs/promises';
 import path from 'node:path';
 
 export interface CmeFile {
   /** Path relative to the hosted root, always with forward slashes. */
   path: string;
-  /** Display name: the relative path without its extension, e.g. "billing/payments". */
+  /** Display name: the relative path without `.cme`, e.g. "billing/payments" — or "billing/payments.ts". */
   name: string;
 }
 
 // build output and dependency trees are never where someone keeps their models
 const SKIP_DIRS = new Set(['node_modules', 'dist', 'coverage', 'build', 'target']);
 
-/** Every `.cme` file under `root`, recursively, sorted by path. Dot-entries and symlinks are skipped. */
+/** Every model file under `root`, recursively, sorted by path. Dot-entries and symlinks are skipped. */
 export async function listCmeFiles(root: string): Promise<CmeFile[]> {
   const out: CmeFile[] = [];
   await walk(root, '', out);
@@ -32,18 +33,18 @@ async function walk(root: string, rel: string, out: CmeFile[]): Promise<void> {
     if (entry.isDirectory()) {
       if (!SKIP_DIRS.has(entry.name)) await walk(root, relPath, out);
     } else if (entry.isFile() && isCme(entry.name)) {
-      out.push({ path: relPath, name: relPath.replace(/\.cme$/i, '') });
+      out.push({ path: relPath, name: relPath.replace(/\.cme(?=(\.ts)?$)/i, '') });
     }
   }
 }
 
 export function isCme(name: string): boolean {
-  return /\.cme$/i.test(name);
+  return /\.cme(\.ts)?$/i.test(name);
 }
 
 /**
  * Turn a request-supplied relative path into an absolute one, or `null` when it
- * is not a `.cme` file or would escape `root` (`../`, absolute paths, NUL bytes).
+ * is not a model file or would escape `root` (`../`, absolute paths, NUL bytes).
  */
 export function resolveCme(root: string, rel: string): string | null {
   if (!rel || rel.includes('\0') || !isCme(rel) || path.isAbsolute(rel) || /^[a-z]:/i.test(rel)) return null;

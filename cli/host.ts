@@ -1,10 +1,12 @@
 // The local server behind `context-map-evolver host`: serves the built app and
-// exposes the hosted directory's .cme files over a tiny read-only API.
+// exposes the hosted directory's model files (.cme, .cme.ts) over a tiny
+// read-only API. TypeScript models are served as text like any other: they run
+// in the browser, never here.
 //
 //   GET /                      the app; index.html gets a <meta name="cme-host">
 //                              tag so the frontend knows it is being hosted
 //   GET /api/files             { dir, root, files: [{ path, name }] }
-//   GET /api/files/<path>      one file's DSL text
+//   GET /api/files/<path>      one file's text
 //   GET /api/events            server-sent events; `change` when a file changes
 import http from 'node:http';
 import path from 'node:path';
@@ -13,7 +15,7 @@ import { readFile, stat } from 'node:fs/promises';
 import { isCme, listCmeFiles, resolveCme } from './files';
 
 export interface HostOptions {
-  /** Directory whose .cme files are offered to the app. */
+  /** Directory whose model files are offered to the app. */
   root: string;
   /** The built frontend (the `dist/` folder). */
   appDir: string;
@@ -30,6 +32,15 @@ export interface HostServer {
 
 export const META_TAG = '<meta name="cme-host" content="/api">';
 
+/**
+ * A TypeScript model is a program, and here it runs on an origin that can read
+ * every model in the hosted directory. This keeps what it reads on the machine:
+ * requests and script loads go to this server only. (`unsafe-eval` is what lets
+ * the app run a model at all.) Sent with every response, because a worker takes
+ * its policy from its own script, not from the page.
+ */
+export const CONTENT_SECURITY_POLICY = "connect-src 'self'; script-src 'self' 'unsafe-eval'; worker-src 'self'";
+
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8',
   '.js': 'text/javascript; charset=utf-8',
@@ -42,6 +53,16 @@ const MIME: Record<string, string> = {
   '.woff2': 'font/woff2',
   '.map': 'application/json',
 };
+
+/**
+ * The address to open. TypeScript models are behind the app's `typescript`
+ * feature flag; asking for one by name is asking for the flag too.
+ */
+export function appUrl(port: number, initialFile?: string): string {
+  if (!initialFile) return `http://localhost:${port}/`;
+  const features = /\.ts$/i.test(initialFile) ? '&features=typescript' : '';
+  return `http://localhost:${port}/?file=${encodeURIComponent(initialFile)}${features}`;
+}
 
 export function createHostServer(opts: HostOptions): HostServer {
   const root = path.resolve(opts.root);
@@ -82,7 +103,7 @@ export function createHostServer(opts: HostOptions): HostServer {
 
   async function sendCme(res: http.ServerResponse, rel: string): Promise<void> {
     const abs = resolveCme(root, rel);
-    if (!abs) return send(res, 404, 'text/plain; charset=utf-8', 'not a .cme file inside the hosted directory');
+    if (!abs) return send(res, 404, 'text/plain; charset=utf-8', 'not a .cme or .cme.ts file inside the hosted directory');
     try {
       return send(res, 200, 'text/plain; charset=utf-8', await readFile(abs, 'utf8'));
     } catch {
@@ -153,6 +174,7 @@ function send(res: http.ServerResponse, status: number, type: string, body: stri
     'Content-Type': type,
     'Content-Length': Buffer.byteLength(body),
     'Cache-Control': 'no-store', // a local tool: the freshest bundle and files, always
+    'Content-Security-Policy': CONTENT_SECURITY_POLICY,
   });
   res.end(body);
 }

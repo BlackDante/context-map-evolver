@@ -10,9 +10,10 @@
     "noImplicitReturns": true,
     "lib": ["ES2020", "DOM", "DOM.Iterable"],
     "types": ["node"],
+    "paths": { "context-map-evolver": ["./src/builder.ts"] },
     "skipLibCheck": true,
     "isolatedModules": true,
     "verbatimModuleSyntax": true
   },
-  "include": ["src", "cli", "tests", "vite.config.ts", "vite.cli.config.ts"]
+  "include": ["src", "cli", "tests", "examples", "vite.config.ts", "vite.cli.config.ts", "vite.lib.config.ts"]
 }

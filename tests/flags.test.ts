@@ -2,9 +2,9 @@ import { describe, expect, it } from 'vitest';
 import { resolveFlags } from '../src/flags';
 
 describe('feature flags', () => {
-  it('ships the analysis panel dark by default', () => {
-    expect(resolveFlags(undefined, '')).toEqual({ analysis: false });
-    expect(resolveFlags('', '?level=3')).toEqual({ analysis: false });
+  it('ships unfinished features dark by default', () => {
+    expect(resolveFlags(undefined, '')).toEqual({ analysis: false, typescript: false });
+    expect(resolveFlags('', '?level=3')).toEqual({ analysis: false, typescript: false });
   });
 
   it('can be switched on at build time', () => {
@@ -23,6 +23,12 @@ describe('feature flags', () => {
   });
 
   it('ignores unknown and inherited names instead of failing', () => {
-    expect(resolveFlags('constructor,nope', '?features=toString,__proto__')).toEqual({ analysis: false });
+    expect(resolveFlags('constructor,nope', '?features=toString,__proto__')).toEqual({ analysis: false, typescript: false });
+  });
+
+  it('switches flags independently, several at once', () => {
+    expect(resolveFlags(undefined, '?features=typescript')).toEqual({ analysis: false, typescript: true });
+    expect(resolveFlags('typescript', '?features=analysis')).toEqual({ analysis: true, typescript: true });
+    expect(resolveFlags('analysis,typescript', '?features=-typescript')).toEqual({ analysis: true, typescript: false });
   });
 });

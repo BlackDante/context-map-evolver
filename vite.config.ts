@@ -6,12 +6,14 @@ import { defineConfig } from 'vitest/config';
 // static.
 export default defineConfig({
   base: './',
+  // the TypeScript evaluator (src/tsworker.ts) is a module worker
+  worker: { format: 'es' },
   test: {
     include: ['tests/**/*.test.ts'],
     coverage: {
       include: ['src/**/*.ts', 'cli/**/*.ts'],
       // DOM wiring, process wiring and static sample data; everything else is pure and tested
-      exclude: ['src/main.ts', 'src/vite-env.d.ts', 'cli/main.ts', 'cli/open.ts'],
+      exclude: ['src/main.ts', 'src/tsworker.ts', 'src/vite-env.d.ts', 'cli/main.ts', 'cli/open.ts'],
     },
   },
 });

@@ -8,10 +8,16 @@
 export interface Flags {
   /** Side panel with strategic advice, coupling metrics and connascence risks. */
   analysis: boolean;
+  /**
+   * Models written in TypeScript: the DSL | TS switch, .cme.ts import/export and
+   * .cme.ts files in hosted mode. Off, the app never runs a line of model code.
+   */
+  typescript: boolean;
 }
 
 const DEFAULTS: Flags = {
   analysis: false,
+  typescript: false,
 };
 
 /** Pure resolver: defaults ← build-time list ← URL query, later sources win. */
